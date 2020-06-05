@@ -8,6 +8,32 @@ import (
 
 var IListFirstFile *os.File
 var IListSecFile *os.File
+var NameListFile *os.File
+
+func get(id uint64, out *[]uint8) *error {
+	NameListFile.Seek(int64(id*200), 0)
+	NameListFile.Read((*out)[:])
+	return nil
+}
+
+func set(name string) (uint64, *error) {
+	buffer := make([]byte, 200)
+
+	// increment name qnt
+	NameListFile.Seek(0, 0)
+	NameListFile.Read(buffer[:8])
+	size := binary.LittleEndian.Uint64(buffer[:8])
+	NameListFile.Seek(0, 0)
+	binary.LittleEndian.PutUint64(buffer[:8], size+1)
+	NameListFile.Write(buffer[:8])
+	NameListFile.Seek(0, 2)
+
+	// append the name to final of file
+	copy(buffer[:], []byte(name))
+	NameListFile.Write(buffer[:])
+
+	return size, nil
+}
 
 func read(term string) ([]uint64, *error) {
 	word := make([]byte, 200)
@@ -20,6 +46,7 @@ func read(term string) ([]uint64, *error) {
 	adress := uint64(0)
 	i := uint64(0)
 	for i < size {
+		// search the id in first file
 		IListFirstFile.Read(buffer[:])
 		if string(buffer) == string(word) {
 			IListFirstFile.Read(buffer[:8])
@@ -32,8 +59,7 @@ func read(term string) ([]uint64, *error) {
 		i = i + 1
 	}
 	if found {
-		fmt.Println(adress)
-		// regist the id in the adress
+		// iterate over second list to find the id
 		IListSecFile.Seek(int64(adress), 0)
 		IListSecFile.Read(buffer[:1])
 		lenth := uint64(buffer[0])
@@ -56,7 +82,10 @@ func read(term string) ([]uint64, *error) {
 	return nil, nil
 }
 
-func create(id uint64, name string) *error {
+func create(name string) *error {
+	// get the new id
+	id, _ := set(name)
+
 	// iterate over each word
 	i := 0
 	for {
@@ -222,11 +251,19 @@ func create(id uint64, name string) *error {
 
 func main() {
 	var err error
+
+	NameListFile, err = os.OpenFile("db/name_list_file.db", os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		panic(err)
+	}
+	NameListFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
+
 	IListFirstFile, err = os.OpenFile("db/ilist_first_file.db", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		panic(err)
 	}
 	IListFirstFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
+
 	IListSecFile, err = os.OpenFile("db/ilist_sec_file.db", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		panic(err)
@@ -234,23 +271,15 @@ func main() {
 	IListSecFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
 
 	// some tests
-	create(49, "jose da silva Junqueira")
-	create(51, "Jose da Junqueira")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(51, "Jose")
-	create(53, "Jose")
-	create(53, "Jose")
-	create(53, "Jose")
-	create(53, "Jose")
+	create("jose da silva Junqueira")
+	create("Jose da Junqueira")
+	create("jorge batatinha")
+	create("Maria Jose da Silva")
 	r, _ := read("jose")
 	fmt.Println(r)
 	r, _ = read("silva")
 	fmt.Println(r)
+	tmp := make([]byte, 200)
+	_ = get(2, (&tmp))
+	fmt.Println(string(tmp))
 }
