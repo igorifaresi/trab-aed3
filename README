@@ -1,0 +1,15 @@
+Olá,
+
+Para compilar:
+
+É necessário setar o ambiente padrão do GO, a pasta deve estar dentro de 
+qualquer diretorio abaixo de "~/go/src/", e também é necessário executar
+"cd ~/go/src/; govendor init" para iniciar o vendor na pasta padrao de 
+desevolvimento do GO.
+
+Para resetar o DB basta sobrescrever os arquivos da pasta "db" com os da
+pasta "db-blank-template".
+
+Para executar:
+
+./trabalho-aed3

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strings"
 )
 
 var IListFirstFile *os.File
@@ -11,6 +13,7 @@ var IListSecFile *os.File
 var NameListFile *os.File
 
 func get(id uint64, out *[]uint8) *error {
+	// move to id offset and get the name
 	NameListFile.Seek(int64(id*200), 0)
 	NameListFile.Read((*out)[:])
 	return nil
@@ -59,7 +62,7 @@ func read(term string) ([]uint64, *error) {
 		i = i + 1
 	}
 	if found {
-		// iterate over second list to find the id
+		// iterate over second list cell to find the id
 		IListSecFile.Seek(int64(adress), 0)
 		IListSecFile.Read(buffer[:1])
 		lenth := uint64(buffer[0])
@@ -71,7 +74,7 @@ func read(term string) ([]uint64, *error) {
 			ids[j] = binary.LittleEndian.Uint64(buffer[:8])
 			j = j + 1
 			k = k + 1
-			if k >= 10 {
+			if k >= 10 { // jump to another cell if k > 10
 				IListSecFile.Read(buffer[:8])
 				IListSecFile.Seek(int64(binary.LittleEndian.Uint64(buffer[:8]))+1, 0)
 				k = 0
@@ -87,43 +90,15 @@ func create(name string) *error {
 	id, _ := set(name)
 
 	// iterate over each word
-	i := 0
-	for {
-		// get the word
-		buffer := ""
-		for {
-			if i >= len(name) || name[i] == byte(' ') {
-				i = i + 1
-				break
-			}
-			buffer = buffer + string(name[i])
-			i = i + 1
-		}
-		lenth := len(buffer)
+	its := strings.Split(name, " ")
+	for i := 0; i < len(its); i = i + 1 {
+		lenth := len(its[i])
 		word := make([]byte, 200)
-		copy(word[:], []byte(buffer))
-
-		// verify if the word is valid
-		valid := true
-		if lenth > 0 && lenth <= 200 {
-			j := 0
-			for j < lenth {
-				if word[j] >= byte('A') && word[j] <= byte('Z') {
-					word[j] = (word[j] - byte('A')) + byte('a')
-				} else if !(word[j] >= byte('a') && word[j] <= byte('z')) {
-					valid = false
-					break
-				}
-				j = j + 1
-			}
-		} else {
-			valid = false
-		}
+		copy(word[:], []byte(strings.ToLower(string(its[i]))))
 
 		// bind the id to word in list files
-		if valid && string(word[:lenth]) != "de" && string(word[:lenth]) != "da" &&
+		if string(word[:lenth]) != "de" && string(word[:lenth]) != "da" &&
 			string(word[:lenth]) != "do" {
-			fmt.Println(string(word))
 			tmp := make([]byte, 200)
 			IListFirstFile.Seek(0, 0)
 			IListFirstFile.Read(tmp[:8])
@@ -132,12 +107,9 @@ func create(name string) *error {
 			pointer := uint64(0)
 			found := false
 
-			//fmt.Println(size)
-
 			// try to find the adress that correspond of word in first file
 			for !found && pointer < size {
 				IListFirstFile.Read(tmp[:])
-				fmt.Println(string(tmp))
 				if string(tmp) == string(word) {
 					IListFirstFile.Read(tmp[:8])
 					adress = binary.LittleEndian.Uint64(tmp[:8])
@@ -189,8 +161,9 @@ func create(name string) *error {
 					return nil
 				}
 
-				return addToSecFile(id, adress, uint64(tmp[0]))
+				addToSecFile(id, adress, uint64(tmp[0]))
 			} else {
+				fmt.Println(its[i] + "$")
 				// if the word not found in first file, append in the final of
 				// first file the word and the new adress(adress in sec file):
 				// |----------------------------------------------------------|
@@ -241,10 +214,6 @@ func create(name string) *error {
 				IListSecFile.Write([]byte{255, 255, 255, 255, 255, 255, 255, 255})
 			}
 		}
-
-		if i >= len(name) {
-			break
-		}
 	}
 	return nil
 }
@@ -256,30 +225,68 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	NameListFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
+	//NameListFile.Write([]byte{1, 0, 0, 0, 0, 0, 0, 0})
 
 	IListFirstFile, err = os.OpenFile("db/ilist_first_file.db", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		panic(err)
 	}
-	IListFirstFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
+	//IListFirstFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
 
 	IListSecFile, err = os.OpenFile("db/ilist_sec_file.db", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		panic(err)
 	}
-	IListSecFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
+	//IListSecFile.Write([]byte{0, 0, 0, 0, 0, 0, 0, 0})
 
-	// some tests
-	create("jose da silva Junqueira")
-	create("Jose da Junqueira")
-	create("jorge batatinha")
-	create("Maria Jose da Silva")
-	r, _ := read("jose")
-	fmt.Println(r)
-	r, _ = read("silva")
-	fmt.Println(r)
-	tmp := make([]byte, 200)
-	_ = get(2, (&tmp))
-	fmt.Println(string(tmp))
+	// simple CLI that allows the addintion of a new name, search a term
+	// associated ids, and get a name by id
+	fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+	fmt.Println("Igor Fagundes, 2020")
+	fmt.Println("")
+	fmt.Println("digite help para obter ajudar, e exit para sair")
+
+	stop := false
+	for !stop {
+		fmt.Print("> ")
+		var str string
+		fmt.Scanln(&str)
+		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+		switch str {
+		case "help":
+			fmt.Println("add -> adicione um novo nome")
+			fmt.Println("find -> procure um termo e retorne os ids referentes a ele")
+			fmt.Println("get -> obtenha um nome pelo id")
+		case "add":
+			fmt.Println("Digite o nome a ser inserido:")
+			fmt.Print("add> ")
+			name, _, _ := bufio.NewReader(os.Stdin).ReadLine()
+			fmt.Println("adicionando: " + string(name))
+			fmt.Println("novos termos:")
+			create(string(name))
+		case "find":
+			fmt.Println("Digite o termo a ser buscado:")
+			fmt.Print("find> ")
+			var term string
+			fmt.Scanln(&term)
+			ids, _ := read(term)
+			fmt.Println(ids)
+		case "get":
+			fmt.Println("Digite o id do nome a ser buscado:")
+			fmt.Print("get> ")
+			var id int
+			fmt.Scanf("%d", &id)
+			buffer := make([]byte, 200)
+			_ = get(uint64(id), (&buffer))
+			fmt.Println("id: " + string(uint64(id)+uint64('0')))
+			fmt.Println(string(buffer))
+		case "exit":
+			fmt.Println("tecle novamente para sair")
+			stop = true
+		}
+		var j int
+		fmt.Scanf("%d", &j)
+		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+	}
 }
